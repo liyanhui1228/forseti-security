@@ -290,7 +290,8 @@ class ParallelCrawler(Crawler):
 def run_crawler(storage,
                 progresser,
                 config,
-                parallel=True):
+                parallel=True,
+                _tracer=None):
     """Run the crawler with a determined configuration.
 
     Args:
@@ -302,24 +303,11 @@ def run_crawler(storage,
     Returns:
         QueueProgresser: The progresser implemented in inventory
     """
-    from opencensus.trace import execution_context
-    from opencensus.trace import tracer
+    from opencensus.trace import tracer as tracer_module
     from opencensus.trace.tracers import noop_tracer
     from google.cloud.forseti.common.opencensus import tracing
 
-    # First try to get the tracer from the execution context, if this is run
-    # after the server interceptor starts a new span, there should be a tracer
-    # in the context to use.
-    _tracer = execution_context.get_opencensus_tracer()
-    # If the tracer doesn't exist in context, create a new tracer instead. This
-    # will add the tracer to the current context, so that anything using this
-    # tracer will have a different trace ID from the grpc server spans which are
-    # using the tracer created internally in the grpc server interceptor.
-    # The ideal state is that the grpc server first creates a tracer and put it
-    # in the execution context (which are automatically done inside opencensus),
-    # then the run_crawler is called, which could find the tracer in the
-    # execution context, and all the spans will have the same trace ID.
-    if isinstance(_tracer, noop_tracer.NoopTracer):
+    if isinstance(_tracer, noop_tracer.NoopTracer) or _tracer is None:
       _tracer = tracer_module.Tracer(exporter=tracing.create_exporter())
     _span = _tracer.start_span()
     _span.name = '[requests]{}'.format('test_request_name')

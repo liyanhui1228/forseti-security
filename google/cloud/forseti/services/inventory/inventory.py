@@ -164,6 +164,8 @@ def run_inventory(service_config,
     Raises:
         Exception: Reraises any exception.
     """
+    from opencensus.trace import execution_context
+    _tracer = execution_context.get_opencensus_tracer()
 
     storage_cls = service_config.get_storage_class()
     with storage_cls(session) as storage:
@@ -173,7 +175,8 @@ def run_inventory(service_config,
             queue.put(progresser)
             result = run_crawler(storage,
                                  progresser,
-                                 service_config.get_inventory_config())
+                                 service_config.get_inventory_config(),
+                                 _tracer=_tracer)
         except Exception as e:
             LOGGER.exception(e)
             storage.rollback()
